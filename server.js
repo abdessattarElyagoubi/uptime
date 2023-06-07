@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const axios = require('axios');
 const fs = require('fs');
 
 const app = express();
@@ -17,7 +17,7 @@ websites.forEach((website) => {
 async function checkStatus() {
   for (const [name, website] of Object.entries(status)) {
     try {
-      const response = await fetch(website.url);
+      const response = await axios.get(website.url);
       if (response.status >= 200 && response.status <= 299) {
         status[name].status = 'up';
       } else {
@@ -115,35 +115,29 @@ app.get('/admin', (req, res) => {
             event.preventDefault();
             const name = document.getElementById('name').value;
             const url = document.getElementById('url').value;
-            await fetch('/website', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ name, url })
-            });
+            await axios.post('/website', { name, url });
             location.reload();
           });
 
           // Populate the delete form select with the current websites
-          fetch('/status')
-            .then(response => response.json())
-            .then(status => {
-              status.forEach(website => {
+          axios.get('/status')
+            .then(response => {
+              response.data.forEach(website => {
                 const option = document.createElement('option');
                 option.value = website.name;
                 option.textContent = website.name;
                 deleteName.appendChild(option);
               });
+            })
+            .catch(error => {
+              console.log(error);
             });
 
           // Submit the delete form on submit
           deleteForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const name = deleteName.value;
-            await fetch('/website/' + name, {
-              method: 'DELETE'
-           });
+            await axios.delete('/website/' + name);
             location.reload();
           });
         </script>
