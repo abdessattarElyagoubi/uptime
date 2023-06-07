@@ -1,3 +1,57 @@
+const express = require('express');
+const fetch = require('node-fetch');
+const fs = require('fs');
+
+const app = express();
+
+// Read the current websites from config.json
+const websites = JSON.parse(fs.readFileSync('config.json'));
+
+// Initialize the status object
+const status = {};
+websites.forEach((website) => {
+  status[website.name] = { url: website.url, status: 'unknown' };
+});
+
+// Function to check the status of all the websites
+async function checkStatus() {
+  for (const [name, website] of Object.entries(status)) {
+    try {
+      const response = await fetch(website.url);
+      if (response.status >= 200 && response.status <= 299) {
+        status[name].status = 'up';
+      } else {
+        status[name].status = 'down';
+      }
+    } catch (error) {
+      status[name].status = 'down';
+    }
+  }
+}
+
+// Check the status of all the websites every 5 seconds
+setInterval(checkStatus, 5000);
+
+// Serve the status JSON object when the user visits /status
+app.get('/status', (req, res) => {
+  res.json(Object.values(status));
+});
+
+// API endpoint to add a website
+app.post('/website', express.json(), (req, res) => {
+  const name = req.body.name;
+  const url = req.body.url;
+
+  // Add the new website to config.json
+  websites.push({ name, url });
+  fs.writeFileSync('config.json', JSON.stringify(websites));
+
+  // Add the new website to the status object
+  status[name] = { url, status: 'unknown' };
+
+  res.sendStatus(200);
+});
+
 // API endpoint to delete a website
 app.delete('/website/:name', (req, res) => {
   const name = req.params.name;
@@ -89,7 +143,7 @@ app.get('/admin', (req, res) => {
             const name = deleteName.value;
             await fetch('/website/' + name, {
               method: 'DELETE'
-            });
+           });
             location.reload();
           });
         </script>
@@ -97,4 +151,10 @@ app.get('/admin', (req, res) => {
     </html>
   `;
   res.send(adminPageHtml);
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
